@@ -1,4 +1,4 @@
-INSERT INTO department (id, department_name)
+INSERT INTO department (id, dept_name)
 VALUES (1, "Human Resources"),
        (2, "Sales"),
        (3, "Engineering"),
@@ -61,5 +61,3 @@ VALUES ("John", "Smith", 1, NULL),
        ("Bob", "Scott", 14, 7),
        ("Sally", "Green", 8, 1),
        ("Mike", "Adams", 9, 2);
-
-       
