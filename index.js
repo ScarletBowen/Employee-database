@@ -7,15 +7,22 @@ const cTable = require('console.table');
 // Connect to database
 const db = mysql.createConnection(
   {
-    host: 'localhost',
-    // MySQL username,
+    host: '127.0.0.1',
     user: 'root',
-    // TODO: Add MySQL password here
     password: 'sunday',
-    database: 'workforce_db'
+    database: 'workforce_db',
   },
-  console.log(`Connected to the workforce_db database.`)
 );
+
+db.connect((err) => {
+    if (err) {
+      console.error('Failed to connect to MySQL database:', err);
+    } else {
+      console.log('Connected to MySQL database.');
+        init();
+    }
+  });
+
 
 // Create a new employee
 function init() {
@@ -71,42 +78,60 @@ function init() {
 }
 const viewDepartments = () => {
     db.query('SELECT * FROM department', (err, results) => {
-        cTable(results);
+        console.table(results);
         init();
     });
 };
 
 viewRoles = () => {
     db.query('SELECT * FROM role', (err, results) => {
-        cTable(results);
+        console.table(results);
         init();
     });
 }
 
 viewEmployees = () => {
-    db.query('SELECT * FROM role', (err, results) => {
-        cTable(results);
-        init();
+    const sql = `SELECT 
+        employee.id,
+        employee.first_name, 
+        employee.last_name, 
+        role.title, 
+        department.dept_name, 
+        role.salary, 
+    CONCAT(manager.first_name, " ", manager.last_name) AS manager
+    FROM employee
+        LEFT JOIN role ON employee.role_id = role.id
+        LEFT JOIN department ON role.department_id = department.id
+        LEFT JOIN employee manager ON manager.id = employee.manager_id
+    ORDER BY employee.id ASC`;
+
+    db.query(sql, (err, results) => {
+        if (err) throw err;
+    console.table(results);
+    init();
     });
-}
+   
+};
 
 addDepartment = () => {
     inquirer
         .prompt([
             {
                 type: 'input',
-                name: 'name',
+                name: 'dept_name',
                 message: 'What is the name of the department you want to add?'
                 
             }
         ])
         .then((answer) => {
-            db.query('INSERT INTO department SET ?', answer, (err, results) => {    
+            let sql = `INSERT INTO department (dept_name) VALUES (?)`;
+            db.query(sql,[answer.dept_name], (err, result) => {
                 if (err) {
                     console.log(err);
+                    return;
                 }   
                 console.log('Department added successfully!');
-                showDepartments();
+                viewDepartments();
                 init();
             });
         });
@@ -137,7 +162,7 @@ addRole = () => {
                     console.log(err);
                 }
                 console.log('Role added successfully!');
-                showRoles();
+                viewRoles();
                 init();
             });
         });
@@ -177,7 +202,7 @@ addEmployee = () => {
                     console.log(err);
                 }
                 console.log('Employee added successfully!');
-                showEmployees();
+                viewEmployees();
                 init();
             });
         });
@@ -185,50 +210,42 @@ addEmployee = () => {
 
 updateEmployeeRole = () => {
     // get employees from employee table
-    const employeeSql = db.query `SELECT * FROM employee`;
-
-    Connection.promise().query(employeeSql, (err, results) => {
+    const sql = `SELECT * FROM employee`;
+    db.query(sql, (err, rows) => {
         if (err) throw err;
-
-    const employeeChoices = results.map(({ id, first_name, last_name }) => ({id: id, name: `${first_name} ${last_name}`}));
-    inquirer
-        .prompt([
+        const employeeArray = [];
+        rows.forEach(function (employee) {
+            employeeArray.push({ name: employee.first_name, value: employee.id });
+        });
+    
+        const roleArray = [];
+        rows.forEach(function (role) {
+            roleArray.push({ name: role.title, value: role.role_id,  title: role.title });
+        });
+    
+        return inquirer.prompt([
             {
-                type: 'input',
+                type: 'list',
                 name: 'id',
-                message: 'What is the ID of the employee you want to update?'
-                
+                message: 'Which employee do you want to update?',
+                choices: employeeArray
             },
             {
-                type: 'input',
+                type: 'list',
                 name: 'role_id',
-                message: 'What is the new role ID of the employee you want to update?'
-
+                message: 'Select a new role for the employee:',
+                choices: roleArray
             }
         ])
-        .then((answer) => {
-            db.query('UPDATE employee SET ? WHERE ?', [answer, {id: answer.id}], (err, results) => {
-                if (err) {
-                    console.log(err);
-                }
-                console.log('Employee updated successfully!');
-                showEmployees();
+        .then(response => {
+            const sql = `UPDATE employee SET role_id=${response.role_id} WHERE id=${response.id};`;
+            db.query(sql, (err, rows) => {
+                if (err) throw err;
+                console.log('Employee role updated successfully!');
+                viewEmployees();
                 init();
             });
-        });
+        })
+    });
 }
-    )
-}
-
-quit = () => {
-    console.log('Goodbye!');
-    process.exit();
-}
-
-
-//updateEmployeeRole();
-//1. what employee?
-//2. before asking which employee, you need to know all the employees, which means you need to make a SELECT * from employee query
-//3. map over (or for loop over) the results array and return an array with the employee names
-//4. once you have that formatted array, you can use it as your choices in the inquirer prompt
-//5. once you have the employee name, you need to get the employee id, which means you need to make another query to get the employee id
+    
