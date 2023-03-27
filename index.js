@@ -2,17 +2,17 @@ const inquirer = require('inquirer');
 // Import and require mysql2
 const mysql = require('mysql2');
 const cTable = require('console.table');
+require('dotenv').config();
 
 
 // Connect to database
-const db = mysql.createConnection(
-  {
+const db = mysql.createConnection({
     host: '127.0.0.1',
-    user: 'root',
-    password: 'sunday',
-    database: 'workforce_db',
-  },
-);
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: 3306,
+  });
 
 db.connect((err) => {
     if (err) {
@@ -76,6 +76,9 @@ function init() {
             }
         });
 }
+
+
+
 const viewDepartments = () => {
     db.query('SELECT * FROM department', (err, results) => {
         console.table(results);
@@ -132,7 +135,6 @@ addDepartment = () => {
                 }   
                 console.log('Department added successfully!');
                 viewDepartments();
-                init();
             });
         });
 }
@@ -163,7 +165,6 @@ addRole = () => {
                 }
                 console.log('Role added successfully!');
                 viewRoles();
-                init();
             });
         });
 }
@@ -203,7 +204,6 @@ addEmployee = () => {
                 }
                 console.log('Employee added successfully!');
                 viewEmployees();
-                init();
             });
         });
 }
@@ -218,17 +218,22 @@ updateEmployeeRole = () => {
             employeeArray.push({ name: employee.first_name, value: employee.id });
         });
     
-        const roleArray = [];
-        rows.forEach(function (role) {
-            roleArray.push({ name: role.title, value: role.role_id,  title: role.title });
-        });
+       
+    // get job titles from role table
+    const roleSql = `SELECT * FROM role`;
+    db.query(roleSql, (err, roles) => {
+    if (err) throw err;
+    const roleArray = [];
+    roles.forEach(function (role) {
+        roleArray.push({ name: role.title, value: role.id });
+    });
     
         return inquirer.prompt([
             {
-                type: 'list',
-                name: 'id',
-                message: 'Which employee do you want to update?',
-                choices: employeeArray
+              type: 'list',
+              name: 'id',
+              message: 'Which employee do you want to update?',
+              choices: employeeArray
             },
             {
                 type: 'list',
@@ -243,9 +248,8 @@ updateEmployeeRole = () => {
                 if (err) throw err;
                 console.log('Employee role updated successfully!');
                 viewEmployees();
-                init();
             });
         })
-    });
-}
-    
+    })
+});
+} 
